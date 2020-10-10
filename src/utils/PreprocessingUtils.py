@@ -115,20 +115,6 @@ def get_matched_alarm_record(matched_file, mach_id, alarm_record, start_year=202
     return alarm, period_dt
 
 
-def split_alarm_normal(alarm):
-    """
-    안씀
-    :param alarm:
-    :return:
-    """
-    normal_idx = alarm['ALARM_ID']=='NORMAL'
-    alarm_idx = alarm['ALARM_ID']!='NORMAL'
-    normal = alarm[normal_idx]
-    alarm = alarm[alarm_idx]
-
-    return normal, alarm
-
-
 def read_concat_file(path_x, filename_list):
     """
     read data files and concat.

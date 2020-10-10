@@ -5,10 +5,10 @@ def main():
     config = configparser.ConfigParser()
     config.read('C:/Users/Dabin/PycharmProjects/hyundai_final/config.ini', encoding='utf-8')
 
-    data_path = config['PATH']['data_path']
-    result_path = config['PATH']['result_path']
-    line_info_path = config['PATH']['line_info_path']
-    alarm_path = config["PATH"]['alarm_path']
+    data_path = config['TRAIN_PATH']['data_path']
+    result_path = config['TRAIN_PATH']['result_path']
+    line_info_path = config['TRAIN_PATH']['line_info_path']
+    alarm_path = config["TRAIN_PATH"]['alarm_path']
 
     plant_name = config['PLANT']['plant_name']
 
@@ -81,6 +81,5 @@ def main():
         # 윈도윙 후 저장 (/window)
         save_pickle(line_folder_list, period, matched_file_name, line, False, X_t, w_multilabel)
 
-if __name__ == "__main__":
-    main()
+main()
 
