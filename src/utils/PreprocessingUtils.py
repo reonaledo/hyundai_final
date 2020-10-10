@@ -153,25 +153,20 @@ def read_concat_file(path_x, filename_list):
     return dat
 
 
-def alarm_labeling(dat_t, alarm, normal,
-                   hours_normal,
+def alarm_labeling(dat_t, alarm,
                    hours_alarm1,
-                   hours_alarm2,
-                   steps_before_alarm=0, steps_after_alarm=0):
+                   hours_alarm2):
     """
     target 데이터에 알람기록 레이블링.
     0: 정상구간
     1: 알람1
     2: 알람2
-    3: 알람3
     -1: 알람중
 
     dat_t = read_file(path_x, target_filename):param pd.DataFrame dat_t: 타겟파일
-    :param pd.DataFrame alarm:
-    :param float hours_before_alarm: 시간단위 전조구간 정의
-    :param float hours_after_alarm: 시간단위 이상구간 정의
-    :param int steps_before_alarm: 타임스텝단위 전조구간 정의
-    :param int steps_after_alarm: 타임스텝단위 이상구간 정의
+    :param pd.DataFrame alarm: 알람파일
+    :param float hours_alarm1: 알람1 시간
+    :param float hours_alarm2: 알람2 시간
     :return:
     """
     alarm_start_times = alarm["START_TIME"].values
@@ -181,8 +176,6 @@ def alarm_labeling(dat_t, alarm, normal,
     alarm.ALARM_ID.apply(str)
     alarm_IDs = list(alarm["ALARM_ID"].values)
     alarm_IDs = [str(id_)+'_' for id_ in alarm_IDs]
-    alarm_IDs_unique = list(set(alarm_IDs))
-    alarm_num_unique = len(alarm_IDs)
 
     dat_alarm = [pd.DataFrame(0, index=range(0, len(dat_t)), columns=[str(alarm_IDs[i])]) for i in range(alarm_num)]
 
@@ -192,20 +185,16 @@ def alarm_labeling(dat_t, alarm, normal,
         alarm_start_time = pd.to_datetime(alarm_start_times[idx])
         alarm_end_time = pd.to_datetime(alarm_end_times[idx])
 
-        if steps_before_alarm == 0:
-            time_normal = alarm_start_time - pd.Timedelta(hours=hours_normal)
-            time_alarm1 = alarm_start_time - pd.Timedelta(hours=hours_alarm1)
-            time_alarm2 = alarm_start_time - pd.Timedelta(hours=hours_alarm2)
+        time_alarm1 = alarm_start_time - pd.Timedelta(hours=hours_alarm1)
+        time_alarm2 = alarm_start_time - pd.Timedelta(hours=hours_alarm2)
 
-            idxs_alarm1 = (dat_t["COLLECT_TIME"] > time_normal) & (dat_t["COLLECT_TIME"] < time_alarm1) # 1
-            idxs_alarm2 = (dat_t["COLLECT_TIME"] > time_alarm1) & (dat_t["COLLECT_TIME"] < time_alarm2) # 2
-            idxs_alarm3 = (dat_t["COLLECT_TIME"] > time_alarm2) & (dat_t["COLLECT_TIME"] < alarm_start_time) # 3
-            idxs_alarm4 = (dat_t["COLLECT_TIME"] > alarm_start_time) & (dat_t["COLLECT_TIME"] < alarm_end_time) # -1
+        idxs_alarm1 = (dat_t["COLLECT_TIME"] > time_alarm1) & (dat_t["COLLECT_TIME"] < time_alarm2) # 1
+        idxs_alarm2 = (dat_t["COLLECT_TIME"] > time_alarm2) & (dat_t["COLLECT_TIME"] < alarm_start_time) # 2
+        idxs_alarm4 = (dat_t["COLLECT_TIME"] > alarm_start_time) & (dat_t["COLLECT_TIME"] < alarm_end_time) # -1
 
-            dat_alarm[idx][alarm_ID][idxs_alarm1] = 1
-            dat_alarm[idx][alarm_ID][idxs_alarm2] = 2
-            dat_alarm[idx][alarm_ID][idxs_alarm3] = 3
-            dat_alarm[idx][alarm_ID][idxs_alarm4] = -1
+        dat_alarm[idx][alarm_ID][idxs_alarm1] = 1
+        dat_alarm[idx][alarm_ID][idxs_alarm2] = 2
+        dat_alarm[idx][alarm_ID][idxs_alarm4] = -1
 
     for i in range(alarm_num):
         dat_t = pd.concat((dat_t, dat_alarm[i]), axis=1)
@@ -279,7 +268,7 @@ def make_multilable(u_dat_y):
     unique_alarm_id = list(set(list(u_dat_y.columns)))
     unique_alarm_id.sort()
 
-    alarm_col_names = [[alarm_id+'1',alarm_id+'2',alarm_id+'3', alarm_id+'-1'] for alarm_id in unique_alarm_id]
+    alarm_col_names = [[alarm_id+'1',alarm_id+'2', alarm_id+'-1'] for alarm_id in unique_alarm_id]
     alarm_col_names = sum(alarm_col_names, [])
     multilabel = pd.DataFrame(0, index=range(0, len(u_dat_y)), columns=alarm_col_names)
 
@@ -291,8 +280,6 @@ def make_multilable(u_dat_y):
                 multilabel[alarm_id + '1'][idx] = 1
             if 2 in labels:
                 multilabel[alarm_id+'2'][idx] = 1
-            if 3 in labels:
-                multilabel[alarm_id + '3'][idx] = 1
             if -1 in labels:
                 multilabel[alarm_id + '-1'][idx] = 1
 
@@ -352,8 +339,7 @@ def windowing(dat_t_x, dat_t_y, jump_idx
             count_0 = sum(each_window[alarm_idx] == 0)
             count_1 = sum(each_window[alarm_idx] == 1)
             count_2 = sum(each_window[alarm_idx] == 2)
-            count_3 = sum(each_window[alarm_idx] == 3)
-            count_list = [count_00, count_0, count_1, count_2, count_3]
+            count_list = [count_00, count_0, count_1, count_2]
             label = count_list.index(max(count_list))-1
 
             labels.append(label)

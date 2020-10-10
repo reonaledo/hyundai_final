@@ -12,7 +12,6 @@ def main():
 
     plant_name = config['PLANT']['plant_name']
 
-    hours_normal = 24 * int(config['PREPROCESSING']['days_normal'])
     hours_alarm1 = 24 * int(config['PREPROCESSING']['days_alarm1'])
     hours_alarm2 = 24 * int(config['PREPROCESSING']['days_alarm2'])
 
@@ -67,7 +66,7 @@ def main():
         del dat_t
 
         # 알람 레이블링
-        u_dat_t = alarm_labeling(u_dat_t, alarm, None, hours_normal, hours_alarm1, hours_alarm2)
+        u_dat_t = alarm_labeling(u_dat_t, alarm, hours_alarm1, hours_alarm2)
 
         u_dat_t_x = u_dat_t.iloc[:, :52]
         u_dat_t_y = u_dat_t.iloc[:, 52:]
