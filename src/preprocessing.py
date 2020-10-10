@@ -1,7 +1,7 @@
-from utils.PreprocessingUtils import *
+from src.utils.PreprocessingUtils import *
 import configparser
 
-def main():
+def preprocess():
     config = configparser.ConfigParser()
     config.read('C:/Users/Dabin/PycharmProjects/hyundai_final/config.ini', encoding='utf-8')
 
@@ -80,6 +80,3 @@ def main():
 
         # 윈도윙 후 저장 (/window)
         save_pickle(line_folder_list, period, matched_file_name, line, False, X_t, w_multilabel)
-
-main()
-

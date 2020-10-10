@@ -7,6 +7,10 @@ import gzip
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import tqdm
+import natsort
+import joblib
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.model_selection import train_test_split
 
 
 def get_file_list(data_list):
@@ -371,3 +375,161 @@ def save_pickle(line_folder_list, period, matched_file_name, line, is_raw, X, y)
 
     return
 
+
+def preprocessing_train(data_path, main_alarm, model_path, scenario):
+    '''
+    transform data to neural network input form
+
+    :param data_path: pickle file path
+    :param main_alarm: target alarm class for data
+    :param model_path: train data scaler save path
+    :param scenario:  scenario name to identify the model
+    :return:
+        train_x, valid_x, test_x, train_y, valid_y, test_y : train, valid and test data for neural network input form
+        class_names : target alarm class
+    '''
+
+    # 저장되어 있는 파일 불러오기
+    data_list = natsort.natsorted(os.listdir(data_path))
+    tmp_X = []
+    tmp_Y = []
+    for i in range(len(data_list[0::2])):
+        with gzip.open(os.path.join(data_path, data_list[0::2][i]), 'rb') as f:
+            x = pickle.load(f)
+        tmp_X.append(x[:,10:52,:].astype(np.float32))
+        with gzip.open(os.path.join(data_path, data_list[1::2][i]), 'rb') as f:
+            tmp_Y.append(pickle.load(f))
+
+    X = np.concatenate([a for a in tmp_X], axis=0)
+    Y = pd.concat([a for a in tmp_Y], axis=0)
+    Y = Y.fillna(0)
+    Y = Y.reset_index(drop=True)
+
+    # 정상 구간 추출
+    co_occur = Y.sum(axis=1)
+    column1 = Y.iloc[:, 0::3].columns
+    column2 = Y.iloc[:, 1::3].columns
+    rearrange_col = []
+    for i in range(len(column1)):
+        rearrange_col.append(column1[i])
+        rearrange_col.append(column2[i])
+    Y = Y[rearrange_col]
+
+    Y['normal'] = np.zeros(len(Y))
+    Y['normal'][co_occur==0] = 1
+    Y['normal'] = Y['normal'].astype('int')
+    Y = Y[rearrange_col]
+
+    adjust_index = Y.sum(axis=1) >= 1
+    y_df = Y[adjust_index]
+    del Y
+    y_df = y_df.drop(y_df.columns[y_df.sum(axis=0) == 0].values, axis=1)
+    y = np.array(y_df)
+    class_names = list(y_df.columns)
+    x = X[adjust_index]
+    del X
+
+    if main_alarm == None:
+        input_x = x
+        inpuy_y = y
+        class_balance = y_df.sum(axis=0)
+    else:
+        classes = [i.split('_')[0] for i in class_names]
+        alarm_exist = list(set(classes).intersection(main_alarm))
+
+        class_names = []
+        for i in alarm_exist:
+            # i = seta_alarm_exist[0]
+            i_1 = i+'_1'
+            i_2 = i+'_2'
+            class_names.append(i_1)
+            class_names.append(i_2)
+        class_names = class_names + ["normal"]
+
+        y_df_main = y_df[class_names]
+        y_df_main['sum'] = y_df_main[list(y_df_main.columns)].sum(axis=1)
+
+        list_window = list(y_df_main['sum'][y_df_main['sum']!=0].index)
+
+        #######################################################
+        class_balance = y_df[class_names].iloc[list_window].sum(axis=0)
+        input_x = x[list_window]
+        inpuy_y = y_df[class_names].iloc[list_window].values
+
+    # data split & nomalization
+    X_train, X_test, train_y, test_y = train_test_split(input_x, inpuy_y,
+                                                        test_size=0.20,
+                                                        random_state=2020,
+                                                        stratify=inpuy_y[:, class_balance.argmin()])
+    X_train, X_val, train_y, valid_y = train_test_split(X_train, train_y,
+                                                        test_size=0.2,
+                                                        random_state=2020,
+                                                        stratify=train_y[:, class_balance.argmin()])
+    X_train = X_train.transpose(0, 2, 1)
+    X_train = X_train.reshape(-1, 42)
+    X_val = X_val.transpose(0, 2, 1)
+    X_val = X_val.reshape(-1, 42)
+    X_test = X_test.transpose(0, 2, 1)
+    X_test = X_test.reshape(-1, 42)
+
+    ##### normalization
+    scaler = MinMaxScaler()
+    scaler.fit(X_train)
+
+    X_train = scaler.transform(X_train)
+    X_train = X_train.reshape(-1, 60, 42)
+    X_val = scaler.transform(X_val)
+    X_val = X_val.reshape(-1, 60, 42)
+    X_test = scaler.transform(X_test)
+    X_test = X_test.reshape(-1, 60, 42)
+
+    ##### define channel dimension to input CNN
+    X_train = X_train.transpose(0, 2, 1)
+    X_val = X_val.transpose(0, 2, 1)
+    X_test = X_test.transpose(0, 2, 1)
+
+    ##### (n_obs, n_sensors, n_times)
+    train_x = np.expand_dims(X_train, axis=3)
+    valid_x = np.expand_dims(X_val, axis=3)
+    test_x = np.expand_dims(X_test, axis=3)
+
+    with open(os.path.join(model_path, '{}.pkl'.format(scenario)), 'wb') as file:
+        joblib.dump(scaler, file)
+
+    return train_x, valid_x, test_x, train_y, valid_y, test_y, class_names
+
+
+def preprocessing_test(data_path, model_path, scenario):
+    '''
+    transform data to neural network input form
+
+    :param data_path: pickle file path
+    :param main_alarm: target alarm class for data
+    :param model_path: train data scaler save path
+    :param scenario:  scenario name to identify the model
+    :return:
+        train_x, valid_x, test_x, train_y, valid_y, test_y : train, valid and test data for neural network input form
+        class_names : target alarm class
+    '''
+
+    # 저장되어 있는 파일 불러오기
+    data_list = natsort.natsorted(os.listdir(data_path))
+    tmp_X = []
+    for i in range(len(data_list)):
+        with gzip.open(os.path.join(data_path, data_list[i]), 'rb') as f:
+            x = pickle.load(f)
+        tmp_X.append(x[:, 10:52, :].astype(np.float32))
+    X = np.concatenate([a for a in tmp_X], axis=0)
+
+    with open(os.path.join(model_path, '{}.pkl'.format(scenario)), 'rb') as file:
+        scaler = joblib.load(file)
+
+    X = X.transpose(0, 2, 1)
+    X = X.reshape(-1, 42)
+    X = scaler.transform(X)
+    X = X.reshape(-1, 60, 42)
+    X = X.transpose(0, 2, 1)
+
+    ##### (n_obs, n_sensors, n_times)
+    X = np.expand_dims(X, axis=3)
+    return X
