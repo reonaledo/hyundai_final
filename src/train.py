@@ -29,8 +29,6 @@ def train():
     save_path.mkdir(parents=True, exist_ok=True)
 
     # hyper parameter setting
-
-
     scenario = config['MODEL']['scenario']
     model_name = config['MODEL']['model_name']
     EPOCH = int(config['MODEL']['EPOCH'])
