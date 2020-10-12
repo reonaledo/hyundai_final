@@ -13,11 +13,6 @@ def test():
     save_path = config['TRAIN_PATH']['save_path']
     result_path = config['TEST_PATH']['result_path']
 
-    plant_name = config['PLANT']['plant_name']
-
-    hours_alarm1 = 24 * int(config['PREPROCESSING']['days_alarm1'])
-    hours_alarm2 = 24 * int(config['PREPROCESSING']['days_alarm2'])
-
     unify_sec = int(config['PREPROCESSING']['unify_sec'])
 
     window_size = int(config['PREPROCESSING']['window_size'])
@@ -38,9 +33,6 @@ def test():
         # 파일 정보 획득
         line, matched_file, matched_file_name = get_file_info(mach_id, target_list, line_info)
         print('processing file name: ', matched_file_name)
-
-        # # 타겟파일에 매칭되는 알람 기록 참조
-        # alarm, period = get_matched_alarm_record(matched_file, mach_id, alarm_record)
 
         # 로드 및 설비ID에 매칭된 파일 하나로 합치기
         dat_t = read_concat_file(data_path, matched_file_name)

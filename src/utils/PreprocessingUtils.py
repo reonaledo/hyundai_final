@@ -243,7 +243,8 @@ def alarm_labeling(dat_t, alarm,
 def windowing_train(dat_t_x, dat_t_y, jump_idx
               , window_size, shift_size):
     """
-    윈도윙 수행. 수집간격이 통합단위보다 큰 경우 윈도윙을 중단하고 그 다음 시점부터 다시 윈도윙 수행
+    모델 학습용 윈도윙 수행.
+    수집간격이 통합단위보다 큰 경우 윈도윙을 중단하고 그 다음 시점부터 다시 윈도윙 수행
     윈도우 내 과반수의 레이블을 윈도우의 레이블로 지정
 
     :param pd.DataFrame dat_t_x: 레이블링 완료된 데이터
@@ -301,15 +302,15 @@ def windowing_train(dat_t_x, dat_t_y, jump_idx
 def windowing_test(dat_t_x, jump_idx
               , window_size, shift_size):
     """
-    윈도윙함. 수집간격이 통합단위보다 큰 경우 윈도윙을 중단하고 그 다음 시점부터 다시 윈도윙 수행
+    모델 테스트용 윈도윙 수행. 레이블을 윈도윙 하지 않음.
+    수집간격이 통합단위보다 큰 경우 윈도윙을 중단하고 그 다음 시점부터 다시 윈도윙 수행
     윈도우 내 과반수의 레이블을 윈도우의 레이블로 지정
 
-    :param pd.DataFrame dat_t_x:
-    :param pd.Series dat_t_y:
+    :param pd.DataFrame dat_t_x: 레이블링 완료된 데이터
     :param list jump_idx: 수집간격 큰 시점
-    :param int window_size:
-    :param int shift_size:
-    :return: X: (n_window, n_sensor, window_size) , y_label: (n_window, )
+    :param int window_size: 윈도우 사이즈
+    :param int shift_size: 쉬프트 사이즈
+    :return: X: (n_window, n_sensor, window_size)
     """
     dat_t_x = np.array(dat_t_x)
 
@@ -336,6 +337,13 @@ def windowing_test(dat_t_x, jump_idx
 
 
 def make_multilable(u_dat_y):
+    """
+    멀티레이블 형태로 변환
+
+    :param pd.DataFrame u_dat_y:
+    :return: pd.DataFrame
+    """
+
     unique_alarm_id = list(set(list(u_dat_y.columns)))
     unique_alarm_id.sort()
 
@@ -364,15 +372,17 @@ def make_multilable(u_dat_y):
 
 def save_pickle(line_folder_list, period, matched_file_name, line, is_raw, X, y):
     """
-    save as pickle
+    save preprocessed file as pickle
 
-    :param path:
+    :param line_folder_list:
+    :param period:
     :param matched_file_name:
+    :param line:
+    :param is_raw:
     :param X:
     :param y:
     :return:
     """
-
     filename = matched_file_name[0][:-10] + '_' + period[0][:10] + '_' + period[1][:10]
     try:
         if line == "block":
