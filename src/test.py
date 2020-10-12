@@ -1,5 +1,6 @@
 from src.utils.PreprocessingUtils import *
 from src.utils.InferenceUtils import *
+from src.utils.model import *
 
 import configparser
 
