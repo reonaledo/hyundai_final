@@ -55,7 +55,7 @@ def test():
         x_shape = train_infor['x_shape']
         y_shape = train_infor['y_shape']
         threshold = train_infor['threshold']
-        class_names = train_infor['class_names']
+        class_names = train_infor['class_names'].tolist()
         class_names.extend(['Unknown'])
 
         with open(os.path.join(model_path, '{}.pkl'.format(scenario)), 'rb') as file:
