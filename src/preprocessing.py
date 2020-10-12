@@ -20,11 +20,7 @@ def preprocess():
     window_size = int(config['PREPROCESSING']['window_size'])
     shift_size = int(config['PREPROCESSING']['shift_size'])
 
-    # 경로 설정 작업
-    path_x = data_path + "raw/공장_세타(4,5월)" + "/"
-
-    data_list = os.listdir(path_x)
-
+    data_list = os.listdir(data_path)
     alarm_record = pd.read_excel(alarm_path)
     line_info = pd.read_excel(line_info_path, header=16).loc[:, ['Line', 'Mach_ID']]
     target_list = get_file_list(data_list)
@@ -57,7 +53,7 @@ def preprocess():
         alarm, period = get_matched_alarm_record(matched_file, mach_id, alarm_record)
 
         # 로드 및 설비ID에 매칭된 파일 하나로 합치기
-        dat_t = read_concat_file(path_x, matched_file_name)
+        dat_t = read_concat_file(data_path, matched_file_name)
 
         # 시간 단위 통합
         u_dat_t, jump_idx_t, idx_log_t = unify_time_unit(dat_t, unify_sec=unify_sec, idx_logging=False,
