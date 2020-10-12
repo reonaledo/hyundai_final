@@ -51,18 +51,8 @@ def test():
 
         del dat_t
 
-        # 알람 레이블링
-        # u_dat_t = alarm_labeling(u_dat_t, alarm, hours_alarm1, hours_alarm2)
-
-        # u_dat_t_x = u_dat_t.iloc[:, :52]
-        # u_dat_t_y = u_dat_t.iloc[:, 52:]
-
-        # del u_dat_t
-
         # 윈도윙
         X = windowing_test(u_dat_t, jump_idx_t, window_size=window_size, shift_size=shift_size)
-
-        # w_multilabel = make_multilable(y_t)
 
         del u_dat_t
 

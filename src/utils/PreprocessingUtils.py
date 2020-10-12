@@ -133,9 +133,9 @@ def unify_time_unit(dat, unify_sec, idx_logging=False, verbose=False):
     """
     동일 시간단위로 통합 (시간 단위 내 값들을 평균취함)
     :param pd.DataFrame dat: 데이터
-    :param unify_sec: 시간 통합 단위
-    :param idx_logging: 디버깅용 옵션
-    :param verbose: 디버깅용 옵션
+    :param int unify_sec: 시간 통합 단위
+    :param boolean idx_logging: 디버깅용 옵션
+    :param boolean verbose: 디버깅용 옵션
     :return:
     """
 
@@ -201,7 +201,7 @@ def alarm_labeling(dat_t, alarm,
     2: 알람2
     -1: 알람중
 
-    dat_t = read_file(path_x, target_filename):param pd.DataFrame dat_t: 타겟파일
+    :param pd.DataFrame dat_t: 시간통합된 데이터
     :param pd.DataFrame alarm: 알람파일
     :param float hours_alarm1: 알람1 시간
     :param float hours_alarm2: 알람2 시간
@@ -243,14 +243,14 @@ def alarm_labeling(dat_t, alarm,
 def windowing_train(dat_t_x, dat_t_y, jump_idx
               , window_size, shift_size):
     """
-    윈도윙함. 수집간격이 통합단위보다 큰 경우 윈도윙을 중단하고 그 다음 시점부터 다시 윈도윙 수행
+    윈도윙 수행. 수집간격이 통합단위보다 큰 경우 윈도윙을 중단하고 그 다음 시점부터 다시 윈도윙 수행
     윈도우 내 과반수의 레이블을 윈도우의 레이블로 지정
 
-    :param pd.DataFrame dat_t_x:
-    :param pd.Series dat_t_y:
+    :param pd.DataFrame dat_t_x: 레이블링 완료된 데이터
+    :param pd.Series dat_t_y: 데이터 레이블
     :param list jump_idx: 수집간격 큰 시점
-    :param int window_size:
-    :param int shift_size:
+    :param int window_size: 윈도우 사이즈
+    :param int shift_size: 쉬프트 사이즈
     :return: X: (n_window, n_sensor, window_size) , y_label: (n_window, )
     """
     alarm_columns = list(dat_t_y.columns)

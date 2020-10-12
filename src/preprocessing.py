@@ -61,7 +61,7 @@ def preprocess():
 
         # 시간 단위 통합
         u_dat_t, jump_idx_t, idx_log_t = unify_time_unit(dat_t, unify_sec=unify_sec, idx_logging=False,
-                                                                      verbose=True)
+                                                                      verbose=False)
 
         del dat_t
 
