@@ -46,9 +46,10 @@ def test():
 
         # 윈도윙
         X = windowing_test(u_dat_t, jump_idx_t, window_size=window_size, shift_size=shift_size)
-
         del u_dat_t
-
+        X_test = X[:, 10:52, :].astype(np.float32)
+        del X
+        
         # get train data information
         train_infor = np.load(os.path.join(save_path, "{}_info_train.npz".format(scenario)))
         x_shape = train_infor['x_shape']
@@ -60,11 +61,11 @@ def test():
         with open(os.path.join(model_path, '{}.pkl'.format(scenario)), 'rb') as file:
             scaler = joblib.load(file)
 
-        X = X.transpose(0, 2, 1)
-        X = X.reshape(-1, 42)
-        X = scaler.transform(X)
-        X = X.reshape(-1, 60, 42)
-        X = X.transpose(0, 2, 1)
+        X_test = X_test.transpose(0, 2, 1)
+        X_test = X_test.reshape(-1, 42)
+        X_test = scaler.transform(X_test)
+        X_test = X_test.reshape(-1, 60, 42)
+        X_test = X_test.transpose(0, 2, 1)
 
         ##predict 코드
         # Load CNN Model
@@ -77,7 +78,7 @@ def test():
 
         CNN.load_weights(os.path.join(model_path, "{}.h5".format(scenario)))
 
-        inference_data = tf.data.Dataset.from_tensor_slices(X).batch(TEST_BATCH_SIZE)
+        inference_data = tf.data.Dataset.from_tensor_slices(X_test).batch(TEST_BATCH_SIZE)
         inference_pred_scores = get_class_prob(CNN, inference_data)
         inference_pred_labels = make_prediction(inference_pred_scores, threshold)
 
