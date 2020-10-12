@@ -7,9 +7,8 @@ import configparser
 import os
 
 def train():
-
     os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"]="1"
+    os.environ["CUDA_VISIBLE_DEVICES"]="0"
     dev = tf.config.experimental.list_physical_devices('GPU')
     tf.config.experimental.set_memory_growth(dev[0], True)
 
