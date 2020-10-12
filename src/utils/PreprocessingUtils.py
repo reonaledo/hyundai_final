@@ -451,7 +451,6 @@ def preprocessing_train(data_path, main_alarm, model_path, scenario):
     Y['normal'] = np.zeros(len(Y))
     Y['normal'][co_occur==0] = 1
     Y['normal'] = Y['normal'].astype('int')
-    Y = Y[rearrange_col]
 
     adjust_index = Y.sum(axis=1) >= 1
     y_df = Y[adjust_index]
@@ -530,39 +529,3 @@ def preprocessing_train(data_path, main_alarm, model_path, scenario):
         joblib.dump(scaler, file)
 
     return train_x, valid_x, test_x, train_y, valid_y, test_y, class_names
-
-
-def preprocessing_test(data_path, model_path, scenario):
-    '''
-    transform data to neural network input form
-
-    :param data_path: pickle file path
-    :param main_alarm: target alarm class for data
-    :param model_path: train data scaler save path
-    :param scenario:  scenario name to identify the model
-    :return:
-        train_x, valid_x, test_x, train_y, valid_y, test_y : train, valid and test data for neural network input form
-        class_names : target alarm class
-    '''
-
-    # 저장되어 있는 파일 불러오기
-    data_list = natsort.natsorted(os.listdir(data_path))
-    tmp_X = []
-    for i in range(len(data_list)):
-        with gzip.open(os.path.join(data_path, data_list[i]), 'rb') as f:
-            x = pickle.load(f)
-        tmp_X.append(x[:, 10:52, :].astype(np.float32))
-    X = np.concatenate([a for a in tmp_X], axis=0)
-
-    with open(os.path.join(model_path, '{}.pkl'.format(scenario)), 'rb') as file:
-        scaler = joblib.load(file)
-
-    X = X.transpose(0, 2, 1)
-    X = X.reshape(-1, 42)
-    X = scaler.transform(X)
-    X = X.reshape(-1, 60, 42)
-    X = X.transpose(0, 2, 1)
-
-    ##### (n_obs, n_sensors, n_times)
-    X = np.expand_dims(X, axis=3)
-    return X
