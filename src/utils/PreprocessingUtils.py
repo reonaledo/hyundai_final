@@ -18,7 +18,7 @@ def get_file_list(data_list):
     target 파일명 리스트 분리
     (공정id가 'xx_x'로 되어있는거 처리하고 target파일 별로 alarm파일에서 매칭되는 alarm 내역 찾기 위함)
 
-    :param list data_list: 데이터 파일명들.
+    :param list data_list: 데이터 파일명
     :return: target_list
     """
 
@@ -46,19 +46,6 @@ def get_machine_list(target_list):
     mach_id_list = list(set(mach_id_list))
     mach_id_list.sort()
     return mach_id_list
-
-
-def get_done_files(base_folder):
-    done = []
-    for (path, dir, files) in os.walk(base_folder):
-        for filename in files:
-            ext = os.path.splitext(filename)[-1]
-            if ext == '':
-                done.append(filename)
-
-    done_file_list = get_file_list(done)
-    done_machine_id = get_machine_list(done_file_list)
-    return done_machine_id
 
 
 def get_file_info(mach_id, target_list, line_info):
@@ -121,8 +108,7 @@ def get_matched_alarm_record(matched_file, mach_id, alarm_record, start_year=202
 
 def read_concat_file(path_x, filename_list):
     """
-    read data files and concat.
-    set "COLLECT_TIME" as pd.datatime
+    read data files and concat, set "COLLECT_TIME" as pd.datatime
 
     :param string path_x: 데이터폴더 주소
     :param string filename_list: 파일명의 list
@@ -143,62 +129,13 @@ def read_concat_file(path_x, filename_list):
     return dat
 
 
-def alarm_labeling(dat_t, alarm,
-                   hours_alarm1,
-                   hours_alarm2):
-    """
-    target 데이터에 알람기록 레이블링.
-    0: 정상구간
-    1: 알람1
-    2: 알람2
-    -1: 알람중
-
-    dat_t = read_file(path_x, target_filename):param pd.DataFrame dat_t: 타겟파일
-    :param pd.DataFrame alarm: 알람파일
-    :param float hours_alarm1: 알람1 시간
-    :param float hours_alarm2: 알람2 시간
-    :return:
-    """
-    alarm_start_times = alarm["START_TIME"].values
-    alarm_end_times = alarm["END_TIME"].values
-
-    alarm_num = len(alarm_start_times)
-    alarm.ALARM_ID.apply(str)
-    alarm_IDs = list(alarm["ALARM_ID"].values)
-    alarm_IDs = [str(id_)+'_' for id_ in alarm_IDs]
-
-    dat_alarm = [pd.DataFrame(0, index=range(0, len(dat_t)), columns=[str(alarm_IDs[i])]) for i in range(alarm_num)]
-
-    # 한 타겟파일에 알람 여러번 생겼을 수 있는거 고려하였음
-    for idx in range(alarm_num):
-        alarm_ID = alarm_IDs[idx]
-        alarm_start_time = pd.to_datetime(alarm_start_times[idx])
-        alarm_end_time = pd.to_datetime(alarm_end_times[idx])
-
-        time_alarm1 = alarm_start_time - pd.Timedelta(hours=hours_alarm1)
-        time_alarm2 = alarm_start_time - pd.Timedelta(hours=hours_alarm2)
-
-        idxs_alarm1 = (dat_t["COLLECT_TIME"] > time_alarm1) & (dat_t["COLLECT_TIME"] < time_alarm2) # 1
-        idxs_alarm2 = (dat_t["COLLECT_TIME"] > time_alarm2) & (dat_t["COLLECT_TIME"] < alarm_start_time) # 2
-        idxs_alarm4 = (dat_t["COLLECT_TIME"] > alarm_start_time) & (dat_t["COLLECT_TIME"] < alarm_end_time) # -1
-
-        dat_alarm[idx][alarm_ID][idxs_alarm1] = 1
-        dat_alarm[idx][alarm_ID][idxs_alarm2] = 2
-        dat_alarm[idx][alarm_ID][idxs_alarm4] = -1
-
-    for i in range(alarm_num):
-        dat_t = pd.concat((dat_t, dat_alarm[i]), axis=1)
-
-    return dat_t
-
-
-def unify_time_unit_before_labeling(dat, unify_sec, idx_logging=False, verbose=False):
+def unify_time_unit(dat, unify_sec, idx_logging=False, verbose=False):
     """
     동일 시간단위로 통합 (시간 단위 내 값들을 평균취함)
-    :param dat:
-    :param unify_sec: 몇초로 통합할 것인지
-    :param idx_logging: 옵션
-    :param verbose: 옵션
+    :param pd.DataFrame dat: 데이터
+    :param unify_sec: 시간 통합 단위
+    :param idx_logging: 디버깅용 옵션
+    :param verbose: 디버깅용 옵션
     :return:
     """
 
@@ -254,34 +191,56 @@ def unify_time_unit_before_labeling(dat, unify_sec, idx_logging=False, verbose=F
     return unified_dat_x, jump_idx, idx_log
 
 
-def make_multilable(u_dat_y):
-    unique_alarm_id = list(set(list(u_dat_y.columns)))
-    unique_alarm_id.sort()
+def alarm_labeling(dat_t, alarm,
+                   hours_alarm1,
+                   hours_alarm2):
+    """
+    target 데이터에 알람기록 레이블링.
+    0: 정상구간
+    1: 알람1
+    2: 알람2
+    -1: 알람중
 
-    alarm_col_names = [[alarm_id+'1',alarm_id+'2', alarm_id+'-1'] for alarm_id in unique_alarm_id]
-    alarm_col_names = sum(alarm_col_names, [])
-    multilabel = pd.DataFrame(0, index=range(0, len(u_dat_y)), columns=alarm_col_names)
+    dat_t = read_file(path_x, target_filename):param pd.DataFrame dat_t: 타겟파일
+    :param pd.DataFrame alarm: 알람파일
+    :param float hours_alarm1: 알람1 시간
+    :param float hours_alarm2: 알람2 시간
+    :return:
+    """
+    alarm_start_times = alarm["START_TIME"].values
+    alarm_end_times = alarm["END_TIME"].values
 
-    for idx in tqdm.tqdm(range(len(u_dat_y))):
+    alarm_num = len(alarm_start_times)
+    alarm.ALARM_ID.apply(str)
+    alarm_IDs = list(alarm["ALARM_ID"].values)
+    alarm_IDs = [str(id_)+'_' for id_ in alarm_IDs]
 
-        for alarm_id in unique_alarm_id:
-            labels = list(set(pd.Series(u_dat_y[alarm_id].iloc[idx]).values))
-            if 1 in labels:
-                multilabel[alarm_id + '1'][idx] = 1
-            if 2 in labels:
-                multilabel[alarm_id+'2'][idx] = 1
-            if -1 in labels:
-                multilabel[alarm_id + '-1'][idx] = 1
+    dat_alarm = [pd.DataFrame(0, index=range(0, len(dat_t)), columns=[str(alarm_IDs[i])]) for i in range(alarm_num)]
 
-    # check error value 72057594037927936
-    error_col = multilabel.columns[(multilabel > 3).sum() != 0]
-    for i in range(len(error_col)):
-        (multilabel[error_col[i]])[(multilabel[error_col[i]]) > 3] = 0
+    # 한 타겟파일에 알람 여러번 생겼을 수 있는거 고려하였음
+    for idx in range(alarm_num):
+        alarm_ID = alarm_IDs[idx]
+        alarm_start_time = pd.to_datetime(alarm_start_times[idx])
+        alarm_end_time = pd.to_datetime(alarm_end_times[idx])
 
-    return multilabel
+        time_alarm1 = alarm_start_time - pd.Timedelta(hours=hours_alarm1)
+        time_alarm2 = alarm_start_time - pd.Timedelta(hours=hours_alarm2)
+
+        idxs_alarm1 = (dat_t["COLLECT_TIME"] > time_alarm1) & (dat_t["COLLECT_TIME"] < time_alarm2) # 1
+        idxs_alarm2 = (dat_t["COLLECT_TIME"] > time_alarm2) & (dat_t["COLLECT_TIME"] < alarm_start_time) # 2
+        idxs_alarm4 = (dat_t["COLLECT_TIME"] > alarm_start_time) & (dat_t["COLLECT_TIME"] < alarm_end_time) # -1
+
+        dat_alarm[idx][alarm_ID][idxs_alarm1] = 1
+        dat_alarm[idx][alarm_ID][idxs_alarm2] = 2
+        dat_alarm[idx][alarm_ID][idxs_alarm4] = -1
+
+    for i in range(alarm_num):
+        dat_t = pd.concat((dat_t, dat_alarm[i]), axis=1)
+
+    return dat_t
 
 
-def windowing(dat_t_x, dat_t_y, jump_idx
+def windowing_train(dat_t_x, dat_t_y, jump_idx
               , window_size, shift_size):
     """
     윈도윙함. 수집간격이 통합단위보다 큰 경우 윈도윙을 중단하고 그 다음 시점부터 다시 윈도윙 수행
@@ -337,6 +296,70 @@ def windowing(dat_t_x, dat_t_y, jump_idx
 
     y_label = pd.DataFrame(y_label, columns=alarm_columns)
     return X, y_label
+
+
+def windowing_test(dat_t_x, jump_idx
+              , window_size, shift_size):
+    """
+    윈도윙함. 수집간격이 통합단위보다 큰 경우 윈도윙을 중단하고 그 다음 시점부터 다시 윈도윙 수행
+    윈도우 내 과반수의 레이블을 윈도우의 레이블로 지정
+
+    :param pd.DataFrame dat_t_x:
+    :param pd.Series dat_t_y:
+    :param list jump_idx: 수집간격 큰 시점
+    :param int window_size:
+    :param int shift_size:
+    :return: X: (n_window, n_sensor, window_size) , y_label: (n_window, )
+    """
+    dat_t_x = np.array(dat_t_x)
+
+    # create windows
+    X = []
+
+    from_, to_ = 0, 0
+    while to_ < len(dat_t_x) - 1:
+        to_ = from_ + window_size
+        if to_ > len(dat_t_x): break;
+
+        # 수집간격 큰 시점 고려
+        window_range = set(range(from_ + 1, to_))
+        if len(window_range & set(jump_idx)) != 0:
+            from_ = list(window_range & set(jump_idx))[-1]
+        else:
+            X.append(np.array(dat_t_x[from_:to_].transpose()))
+            from_ = from_ + shift_size
+
+    # to 3D array
+    X = np.array(X)  # .reshape(-1, n_sensors, window_size)
+
+    return X
+
+
+def make_multilable(u_dat_y):
+    unique_alarm_id = list(set(list(u_dat_y.columns)))
+    unique_alarm_id.sort()
+
+    alarm_col_names = [[alarm_id+'1',alarm_id+'2', alarm_id+'-1'] for alarm_id in unique_alarm_id]
+    alarm_col_names = sum(alarm_col_names, [])
+    multilabel = pd.DataFrame(0, index=range(0, len(u_dat_y)), columns=alarm_col_names)
+
+    for idx in tqdm.tqdm(range(len(u_dat_y))):
+
+        for alarm_id in unique_alarm_id:
+            labels = list(set(pd.Series(u_dat_y[alarm_id].iloc[idx]).values))
+            if 1 in labels:
+                multilabel[alarm_id + '1'][idx] = 1
+            if 2 in labels:
+                multilabel[alarm_id+'2'][idx] = 1
+            if -1 in labels:
+                multilabel[alarm_id + '-1'][idx] = 1
+
+    # check error value 72057594037927936
+    error_col = multilabel.columns[(multilabel > 3).sum() != 0]
+    for i in range(len(error_col)):
+        (multilabel[error_col[i]])[(multilabel[error_col[i]]) > 3] = 0
+
+    return multilabel
 
 
 def save_pickle(line_folder_list, period, matched_file_name, line, is_raw, X, y):

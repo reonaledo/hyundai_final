@@ -60,7 +60,7 @@ def preprocess():
         dat_t = read_concat_file(path_x, matched_file_name)
 
         # 시간 단위 통합
-        u_dat_t, jump_idx_t, idx_log_t = unify_time_unit_before_labeling(dat_t, unify_sec=unify_sec, idx_logging=False,
+        u_dat_t, jump_idx_t, idx_log_t = unify_time_unit(dat_t, unify_sec=unify_sec, idx_logging=False,
                                                                       verbose=True)
 
         del dat_t
@@ -74,7 +74,7 @@ def preprocess():
         del u_dat_t
 
         # 윈도윙
-        X_t, y_t = windowing(u_dat_t_x, u_dat_t_y, jump_idx_t, window_size=window_size, shift_size=shift_size)
+        X_t, y_t = windowing_train(u_dat_t_x, u_dat_t_y, jump_idx_t, window_size=window_size, shift_size=shift_size)
 
         w_multilabel = make_multilable(y_t)
 

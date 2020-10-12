@@ -9,7 +9,6 @@ def test():
 
     data_path = config['TEST_PATH']['data_path']
     line_info_path = config['TRAIN_PATH']['line_info_path']
-    alarm_path = config["TEST_PATH"]['alarm_path']
     model_path = config['TRAIN_PATH']['model_path']
     save_path = config['TRAIN_PATH']['save_path']
     result_path = config['TEST_PATH']['result_path']
@@ -28,7 +27,7 @@ def test():
     model_name = config['MODEL']['model_name']
     TEST_BATCH_SIZE = int(config['MODEL']['TEST_BATCH_SIZE'])
 
-    alarm_record = pd.read_excel(alarm_path)
+    data_list = os.listdir(data_path)
     line_info = pd.read_excel(line_info_path, header=16).loc[:, ['Line', 'Mach_ID']]
     target_list = get_file_list(data_list)
     target_machine_list = get_machine_list(target_list)
@@ -40,36 +39,33 @@ def test():
         line, matched_file, matched_file_name = get_file_info(mach_id, target_list, line_info)
         print('processing file name: ', matched_file_name)
 
-        # 타겟파일에 매칭되는 알람 기록 참조
-        alarm, period = get_matched_alarm_record(matched_file, mach_id, alarm_record)
+        # # 타겟파일에 매칭되는 알람 기록 참조
+        # alarm, period = get_matched_alarm_record(matched_file, mach_id, alarm_record)
 
         # 로드 및 설비ID에 매칭된 파일 하나로 합치기
-        dat_t = read_concat_file(path_x, matched_file_name)
+        dat_t = read_concat_file(data_path, matched_file_name)
 
         # 시간 단위 통합
-        u_dat_t, jump_idx_t, idx_log_t = unify_time_unit_before_labeling(dat_t, unify_sec=unify_sec, idx_logging=False,
+        u_dat_t, jump_idx_t, idx_log_t = unify_time_unit(dat_t, unify_sec=unify_sec, idx_logging=False,
                                                                       verbose=True)
 
         del dat_t
 
         # 알람 레이블링
-        u_dat_t = alarm_labeling(u_dat_t, alarm, hours_alarm1, hours_alarm2)
+        # u_dat_t = alarm_labeling(u_dat_t, alarm, hours_alarm1, hours_alarm2)
 
-        u_dat_t_x = u_dat_t.iloc[:, :52]
-        u_dat_t_y = u_dat_t.iloc[:, 52:]
+        # u_dat_t_x = u_dat_t.iloc[:, :52]
+        # u_dat_t_y = u_dat_t.iloc[:, 52:]
+
+        # del u_dat_t
+
+        # 윈도윙
+        X = windowing_test(u_dat_t, jump_idx_t, window_size=window_size, shift_size=shift_size)
+
+        # w_multilabel = make_multilable(y_t)
 
         del u_dat_t
 
-        # 윈도윙
-        X_t, y_t = windowing(u_dat_t_x, u_dat_t_y, jump_idx_t, window_size=window_size, shift_size=shift_size)
-
-        w_multilabel = make_multilable(y_t)
-
-        del u_dat_t_x, u_dat_t_y, y_t
-
-        X_t, w_multilabel ################# y 없애야됨
-
-        ##상훈전처리
         # get train data information
         train_infor = np.load(os.path.join(save_path, "{}_info_train.npz".format(scenario)))
         x_shape = train_infor['x_shape']
@@ -81,7 +77,7 @@ def test():
         with open(os.path.join(model_path, '{}.pkl'.format(scenario)), 'rb') as file:
             scaler = joblib.load(file)
 
-        X = X_t.transpose(0, 2, 1)
+        X = X.transpose(0, 2, 1)
         X = X.reshape(-1, 42)
         X = scaler.transform(X)
         X = X.reshape(-1, 60, 42)
