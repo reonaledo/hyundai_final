@@ -1,6 +1,7 @@
 from src.utils.PreprocessingUtils import *
 from src.utils.InferenceUtils import *
 from src.utils.model import *
+from pathlib import Path
 
 import configparser
 
@@ -13,7 +14,9 @@ def test():
     model_path = config['TRAIN_PATH']['model_path']
     save_path = config['TRAIN_PATH']['save_path']
     result_path = config['TEST_PATH']['result_path']
-
+    result_path = Path(result_path)
+    result_path.mkdir(parents=True, exist_ok=True)
+    
     unify_sec = int(config['PREPROCESSING']['unify_sec'])
 
     window_size = int(config['PREPROCESSING']['window_size'])
