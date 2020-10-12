@@ -1,7 +1,9 @@
 from src.utils.PreprocessingUtils import *
 from src.utils.InferenceUtils import *
-import configparser
+from src.utils.model import *
+from pathlib import Path
 
+import configparser
 import os
 
 def train():
@@ -20,10 +22,12 @@ def train():
 
     # set model path
     model_path = config['TRAIN_PATH']['model_path']
-
+    model_path = Path(model_path)
+    model_path.mkdir(parents=True, exist_ok=True)
     # set save path
     save_path = config['TRAIN_PATH']['save_path']
-
+    save_path = Path(save_path)
+    save_path.mkdir(parents=True, exist_ok=True)
 
     # hyper parameter setting
 
