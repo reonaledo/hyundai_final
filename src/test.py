@@ -6,6 +6,11 @@ from pathlib import Path
 import configparser
 
 def test():
+    os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+    dev = tf.config.experimental.list_physical_devices('GPU')
+    tf.config.experimental.set_memory_growth(dev[0], True)
+    
     config = configparser.ConfigParser()
     config.read('C:/Users/Dabin/PycharmProjects/hyundai_final/config.ini', encoding='utf-8')
 
