@@ -1,4 +1,6 @@
-import sys
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 from src.preprocessing import *
 from src.test import *
 from src.train import *
