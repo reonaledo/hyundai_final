@@ -1,5 +1,7 @@
 from src.utils.PreprocessingUtils import *
 import configparser
+import time
+
 
 def preprocess():
     config = configparser.ConfigParser()
@@ -53,26 +55,38 @@ def preprocess():
         alarm, period = get_matched_alarm_record(matched_file, mach_id, alarm_record)
 
         # 로드 및 설비ID에 매칭된 파일 하나로 합치기
+        time_read = time.time()
         dat_t = read_concat_file(data_path, matched_file_name)
 
         # 시간 단위 통합
-        u_dat_t, jump_idx_t, idx_log_t = unify_time_unit(dat_t, unify_sec=unify_sec, idx_logging=False,
+        time_merge = time.time()
+        u_dat_t_x, jump_idx_t, idx_log_t = unify_time_unit(dat_t, unify_sec=unify_sec, idx_logging=False,
                                                                       verbose=False)
 
         del dat_t
 
         # 알람 레이블링
-        u_dat_t = alarm_labeling(u_dat_t, alarm, hours_alarm1, hours_alarm2)
-
-        u_dat_t_x = u_dat_t.iloc[:, :52]
-        u_dat_t_y = u_dat_t.iloc[:, 52:]
-
-        del u_dat_t
+        time_labeling = time.time()
+        u_dat_t_y = alarm_labeling(u_dat_t_x, alarm, hours_alarm1, hours_alarm2)
 
         # 윈도윙
+        time_windowing = time.time()
         X_t, y_t = windowing_train(u_dat_t_x, u_dat_t_y, jump_idx_t, window_size=window_size, shift_size=shift_size)
 
+        time_multilabeling = time.time()
         w_multilabel = make_multilable(y_t)
 
         # 윈도윙 후 저장 (/window)
+        time_save = time.time()
         save_pickle(line_folder_list, period, matched_file_name, line, False, X_t, w_multilabel)
+
+        time_end = time.time()
+        print(f'전체소요시간: {time_end - time_read}',
+              f'파일읽기   : {time_merge - time_read}',
+              f'시간통합   : {time_labeling - time_merge}',
+              f'레이블링   : {time_windowing - time_labeling}',
+              f'윈도윙     : {time_multilabeling - time_windowing}',
+              f'멀티레이블링: {time_save - time_multilabeling}',
+              f'저장      : {time_end - time_save}'
+              )
+

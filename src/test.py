@@ -48,14 +48,14 @@ def test():
         dat_t = read_concat_file(data_path, matched_file_name)
 
         # 시간 단위 통합
-        u_dat_t, jump_idx_t, idx_log_t = unify_time_unit(dat_t, unify_sec=unify_sec, idx_logging=False,
+        u_dat_t_x, jump_idx_t, idx_log_t = unify_time_unit(dat_t, unify_sec=unify_sec, idx_logging=False,
                                                          verbose=True)
 
         del dat_t
 
         # 윈도윙
-        X_test = windowing_test(u_dat_t, jump_idx_t, window_size=window_size, shift_size=shift_size)
-        del u_dat_t
+        X_test = windowing_test(u_dat_t_x, jump_idx_t, window_size=window_size, shift_size=shift_size)
+        del u_dat_t_x
 
         # get train data information
         train_infor = np.load(os.path.join(save_path, "{}_info_train.npz".format(scenario)))

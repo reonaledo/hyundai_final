@@ -5,7 +5,6 @@ import sys
 import pickle
 import gzip
 from datetime import datetime, timedelta
-import tqdm
 import natsort
 import joblib
 from sklearn.preprocessing import MinMaxScaler
@@ -65,7 +64,7 @@ def get_file_info(mach_id, target_list, line_info):
     matched_file = []
     matched_file_name = []
     for i, target_file in enumerate(target_list[2]):
-        if str(target_file[1:]) == mach_id:
+        if str(int(target_file[1:])) == mach_id:
             matched_file.append(list(target_list.iloc[i,:]))
             matched_file_name.append(get_file_name(target_list.iloc[i,:]))
 
@@ -111,7 +110,7 @@ def read_concat_file(path_x, filename_list):
 
     :param string path_x: 데이터폴더 주소
     :param string filename_list: 파일명의 list
-    :return: pd.DataFrame
+    :return: np.array
     """
 
     dat = pd.DataFrame()
@@ -125,13 +124,14 @@ def read_concat_file(path_x, filename_list):
     dat["COLLECT_TIME"] = pd.to_datetime(dat["COLLECT_TIME"])
     dat.iloc[:, 1:] = dat.iloc[:, 1:].astype('float')
 
-    return dat
+
+    return np.array(dat)
 
 
 def unify_time_unit(dat, unify_sec, idx_logging=False, verbose=False):
     """
     동일 시간단위로 통합 (시간 단위 내 값들을 평균취함)
-    :param pd.DataFrame dat: 데이터
+    :param np.array dat: 데이터
     :param int unify_sec: 시간 통합 단위
     :param boolean idx_logging: 디버깅용 옵션
     :param boolean verbose: 디버깅용 옵션
@@ -142,7 +142,7 @@ def unify_time_unit(dat, unify_sec, idx_logging=False, verbose=False):
         return (time_gap.days * 24 * 60 * 60 + time_gap.seconds) * 1000000 + time_gap.microseconds
 
     from_, to_, time_gap_micsec, unified_dat_x_idx = 0, 0, 0, 0
-    from_time = dat["COLLECT_TIME"][from_]
+    from_time = dat[from_, 0]
     idx_log = []
     jump_idx = []
     unified_dat_x = []
@@ -156,7 +156,7 @@ def unify_time_unit(dat, unify_sec, idx_logging=False, verbose=False):
             time_gap_micsec = 0
 
         if not finished:
-            time_gap = dat["COLLECT_TIME"][to_] - from_time
+            time_gap = dat[to_, 0] - from_time
             time_gap_micsec = to_micsec(time_gap)
 
         if time_gap_micsec < unify_sec * 1000000:
@@ -165,27 +165,27 @@ def unify_time_unit(dat, unify_sec, idx_logging=False, verbose=False):
             if idx_logging: idx_log.append([from_, to_])
             if verbose and unified_dat_x_idx % 100 == 0: print(from_ / len(dat))
 
-            dat_range = dat.iloc[from_:to_, :]
-            unified_time = dat_range.iloc[:, :2].max()
-            unified_mach_info = dat_range.iloc[:, 2:10].median()
-            unified_target = dat_range.iloc[:, 10:].mean()
-            unified = pd.concat((unified_time, unified_mach_info, unified_target))
+            dat_range = dat[from_:to_]
+            unified_time = np.apply_along_axis(lambda a: np.max(a), 0, dat_range[:,:2])
+            unified_mach_info = np.apply_along_axis(lambda a: np.median(a), 0, dat_range[:,2:10])
+            unified_target = np.apply_along_axis(lambda a: np.mean(a), 0, dat_range[:,10:])
+            unified = np.concatenate((unified_time, unified_mach_info, unified_target))
             unified_dat_x.append(unified)
 
             # check time-jump
             if not finished:
                 unified_dat_x_idx += 1
-                next_unified_gap = dat["COLLECT_TIME"][to_] - dat["COLLECT_TIME"][to_ - 1]
+                next_unified_gap = dat[to_,0] - dat[to_ - 1,0]
                 next_unified_gap_micsec = to_micsec(next_unified_gap)
                 if next_unified_gap_micsec > unify_sec * 1000000:
-                    jump_idx.append(unified_dat_x_idx)  # 추후에 jump_idx를 포함하는 윈도우는 이를 첫 인덱스로 갖는 경우를 제외하고 제거하면 됨.
+                    jump_idx.append(unified_dat_x_idx)  # 추후에 jump_idx를 포함하는 윈도우는 이를 첫 인덱스로 갖는 경우를 제외하고 제거할 것.
 
                 from_ = to_
-                from_time = dat["COLLECT_TIME"][from_]
+                from_time = dat[from_,0]
 
-    unified_dat_x = pd.DataFrame(unified_dat_x)
+    unified_dat_x = np.array(unified_dat_x)
 
-    unified_dat_x.iloc[:, 2:] = unified_dat_x.iloc[:, 2:].astype('float')
+    unified_dat_x[:, 2:] = unified_dat_x[:, 2:].astype(np.float32)
 
     return unified_dat_x, jump_idx, idx_log
 
@@ -200,11 +200,11 @@ def alarm_labeling(dat_t, alarm,
     2: 알람2
     -1: 알람중
 
-    :param pd.DataFrame dat_t: 시간통합된 데이터
+    :param np.array dat_t: 시간통합된 데이터
     :param pd.DataFrame alarm: 알람파일
     :param float hours_alarm1: 알람1 시간
     :param float hours_alarm2: 알람2 시간
-    :return:
+    :return pd.DataFrame:
     """
     alarm_start_times = alarm["START_TIME"].values
     alarm_end_times = alarm["END_TIME"].values
@@ -215,6 +215,7 @@ def alarm_labeling(dat_t, alarm,
     alarm_IDs = [str(id_)+'_' for id_ in alarm_IDs]
 
     dat_alarm = [pd.DataFrame(0, index=range(0, len(dat_t)), columns=[str(alarm_IDs[i])]) for i in range(alarm_num)]
+    # dat_alarm = [np.zeros(len(dat_t), dtype={'names':[alarm_IDs[i]], 'formats':[np.int]}) for i in range(alarm_num)]
 
     # 한 타겟파일에 알람 여러번 생겼을 수 있는거 고려하였음
     for idx in range(alarm_num):
@@ -225,18 +226,19 @@ def alarm_labeling(dat_t, alarm,
         time_alarm1 = alarm_start_time - pd.Timedelta(hours=hours_alarm1)
         time_alarm2 = alarm_start_time - pd.Timedelta(hours=hours_alarm2)
 
-        idxs_alarm1 = (dat_t["COLLECT_TIME"] > time_alarm1) & (dat_t["COLLECT_TIME"] < time_alarm2) # 1
-        idxs_alarm2 = (dat_t["COLLECT_TIME"] > time_alarm2) & (dat_t["COLLECT_TIME"] < alarm_start_time) # 2
-        idxs_alarm4 = (dat_t["COLLECT_TIME"] > alarm_start_time) & (dat_t["COLLECT_TIME"] < alarm_end_time) # -1
+        idxs_alarm1 = (dat_t[:,0] > time_alarm1) & (dat_t[:,0] < time_alarm2) # 1
+        idxs_alarm2 = (dat_t[:,0] > time_alarm2) & (dat_t[:,0] < alarm_start_time) # 2
+        idxs_alarm4 = (dat_t[:,0] > alarm_start_time) & (dat_t[:,0] < alarm_end_time) # -1
 
         dat_alarm[idx][alarm_ID][idxs_alarm1] = 1
         dat_alarm[idx][alarm_ID][idxs_alarm2] = 2
         dat_alarm[idx][alarm_ID][idxs_alarm4] = -1
 
+    y = pd.DataFrame(0, index=range(0, len(dat_t)), columns=['temp'])
     for i in range(alarm_num):
-        dat_t = pd.concat((dat_t, dat_alarm[i]), axis=1)
+        y = pd.concat((y, dat_alarm[i]), axis=1)
 
-    return dat_t
+    return y.iloc[:, 1:]
 
 
 def windowing_train(dat_t_x, dat_t_y, jump_idx
@@ -246,15 +248,14 @@ def windowing_train(dat_t_x, dat_t_y, jump_idx
     수집간격이 통합단위보다 큰 경우 윈도윙을 중단하고 그 다음 시점부터 다시 윈도윙 수행
     윈도우 내 과반수의 레이블을 윈도우의 레이블로 지정
 
-    :param pd.DataFrame dat_t_x: 레이블링 완료된 데이터
-    :param pd.Series dat_t_y: 데이터 레이블
+    :param np.array dat_t_x: 레이블링 완료된 데이터
+    :param pd.DataFrame dat_t_y: 데이터 레이블
     :param list jump_idx: 수집간격 큰 시점
     :param int window_size: 윈도우 사이즈
     :param int shift_size: 쉬프트 사이즈
     :return: X: (n_window, n_sensor, window_size) , y_label: (n_window, )
     """
     alarm_columns = list(dat_t_y.columns)
-    dat_t_x = np.array(dat_t_x)
     dat_t_y = np.array(dat_t_y)
 
     # create windows
@@ -311,8 +312,6 @@ def windowing_test(dat_t_x, jump_idx
     :param int shift_size: 쉬프트 사이즈
     :return: X: (n_window, n_sensor, window_size)
     """
-    dat_t_x = np.array(dat_t_x)
-
     # create windows
     X = []
 
@@ -350,16 +349,16 @@ def make_multilable(u_dat_y):
     alarm_col_names = sum(alarm_col_names, [])
     multilabel = pd.DataFrame(0, index=range(0, len(u_dat_y)), columns=alarm_col_names)
 
-    for idx in tqdm.tqdm(range(len(u_dat_y))):
+    for idx in range(len(u_dat_y)):
 
         for alarm_id in unique_alarm_id:
-            labels = list(set(pd.Series(u_dat_y[alarm_id].iloc[idx]).values))
+            labels = list(set(pd.Series(u_dat_y[alarm_id].iat[idx]).values))
             if 1 in labels:
-                multilabel[alarm_id + '1'][idx] = 1
+                multilabel[alarm_id + '1'].iat[idx] = 1
             if 2 in labels:
-                multilabel[alarm_id+'2'][idx] = 1
+                multilabel[alarm_id+'2'].iat[idx] = 1
             if -1 in labels:
-                multilabel[alarm_id + '-1'][idx] = 1
+                multilabel[alarm_id + '-1'].iat[idx] = 1
 
     # check error value 72057594037927936
     error_col = multilabel.columns[(multilabel > 3).sum() != 0]
