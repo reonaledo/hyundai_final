@@ -14,10 +14,10 @@ def train():
 
     # Path Setting #
     config = configparser.ConfigParser()
-    config.read('C:/Users/Dabin/PycharmProjects/hyundai_final/config.ini', encoding='utf-8')
+    config.read('./config.ini', encoding='utf-8')
 
     # set data path
-    data_path = config['TRAIN_PATH']['result_path']
+    data_path = config['TRAIN_PATH']['train_data_path']
 
     # set model path
     model_path = config['TRAIN_PATH']['model_path']
@@ -86,6 +86,7 @@ def train():
              y_shape = np.array(train_y.shape[1]),
              threshold = threshold,
              class_names = class_names)
+
 
 
 

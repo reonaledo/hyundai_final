@@ -5,7 +5,6 @@ import sys
 import pickle
 import gzip
 from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
 import tqdm
 import natsort
 import joblib
@@ -332,7 +331,7 @@ def windowing_test(dat_t_x, jump_idx
 
     # to 3D array
     X = np.array(X)  # .reshape(-1, n_sensors, window_size)
-
+    X = X[:, 10: 52,:].astype(np.float32)
     return X
 
 

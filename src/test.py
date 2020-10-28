@@ -5,14 +5,15 @@ from pathlib import Path
 
 import configparser
 
+
 def test():
-    os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"]="0"
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     dev = tf.config.experimental.list_physical_devices('GPU')
     tf.config.experimental.set_memory_growth(dev[0], True)
-    
+
     config = configparser.ConfigParser()
-    config.read('C:/Users/Dabin/PycharmProjects/hyundai_final/config.ini', encoding='utf-8')
+    config.read('./config.ini', encoding='utf-8')
 
     data_path = config['TEST_PATH']['data_path']
     line_info_path = config['TRAIN_PATH']['line_info_path']
@@ -21,7 +22,7 @@ def test():
     result_path = config['TEST_PATH']['result_path']
     result_path = Path(result_path)
     result_path.mkdir(parents=True, exist_ok=True)
-    
+
     unify_sec = int(config['PREPROCESSING']['unify_sec'])
 
     window_size = int(config['PREPROCESSING']['window_size'])
@@ -48,16 +49,14 @@ def test():
 
         # 시간 단위 통합
         u_dat_t, jump_idx_t, idx_log_t = unify_time_unit(dat_t, unify_sec=unify_sec, idx_logging=False,
-                                                                      verbose=True)
+                                                         verbose=True)
 
         del dat_t
 
         # 윈도윙
-        X = windowing_test(u_dat_t, jump_idx_t, window_size=window_size, shift_size=shift_size)
+        X_test = windowing_test(u_dat_t, jump_idx_t, window_size=window_size, shift_size=shift_size)
         del u_dat_t
-        X_test = X[:, 10:52, :].astype(np.float32)
-        del X
-        
+
         # get train data information
         train_infor = np.load(os.path.join(save_path, "{}_info_train.npz".format(scenario)))
         x_shape = train_infor['x_shape']
@@ -74,15 +73,16 @@ def test():
         X_test = scaler.transform(X_test)
         X_test = X_test.reshape(-1, 60, 42)
         X_test = X_test.transpose(0, 2, 1)
+        X_test = np.expand_dims(X_test, axis=3)
 
         ##predict 코드
         # Load CNN Model
         if model_name == 'densenet':
-            CNN = densenet_model(x_shape, y_shape, False, False)
+            CNN = densenet_model(tuple(list(x_shape)), int(y_shape), False, False)
         elif model_name == 'resnet':
-            CNN = resnet_model(x_shape, y_shape, False, False)
+            CNN = resnet_model(tuple(list(x_shape)), int(y_shape), False, False)
         elif model_name == 'vggnet':
-            CNN = vggnet_model(x_shape, y_shape, False, False)
+            CNN = vggnet_model(tuple(list(x_shape)), int(y_shape), False, False)
 
         CNN.load_weights(os.path.join(model_path, "{}.h5".format(scenario)))
 
@@ -90,6 +90,9 @@ def test():
         inference_pred_scores = get_class_prob(CNN, inference_data)
         inference_pred_labels = make_prediction(inference_pred_scores, threshold)
 
+        del X_test
+
         ##output 출력
         pd.DataFrame(inference_pred_labels, columns=class_names).to_csv(
-            os.path.join(result_path, "{}_pred.csv".format(scenario)), index=False)
+            os.path.join(result_path, "{}_{}_pred.csv".format(scenario, mach_id)), index=False)
+
